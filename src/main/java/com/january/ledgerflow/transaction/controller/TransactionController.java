@@ -26,7 +26,14 @@ public class TransactionController {
 
     @PostMapping("/transfer")
     public void transfer(@RequestBody TransferRequestDTO transferRequestDTO) {
-
+        /**
+         * 계좌 이체(TRANSFER)
+         * - A → B
+         * - 하나의 트랜잭션으로 처리
+         * - 동시성 안전
+         * - 데드락 방지(계좌 A, B가 서로에게 이체하려는 경우) by 계좌 ID 정렬(항상 작은 ID 먼저 락)
+         */
+        transactionService.transfer(transferRequestDTO);
     }
 
 }
