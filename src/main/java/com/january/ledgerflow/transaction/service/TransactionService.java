@@ -1,6 +1,8 @@
 package com.january.ledgerflow.transaction.service;
 
 import com.january.ledgerflow.account.domain.Account;
+import com.january.ledgerflow.common.exception.CustomException;
+import com.january.ledgerflow.common.exception.ErrorCode;
 import com.january.ledgerflow.transaction.dto.DepositRequestDTO;
 import com.january.ledgerflow.transaction.dto.TransferRequestDTO;
 import com.january.ledgerflow.transaction.dto.WithdrawRequestDTO;
@@ -29,41 +31,56 @@ public class TransactionService {
     @Transactional
     public void deposit(DepositRequestDTO depositRequestDTO) {
         Account account = accountRepository.findByIdForUpdate(depositRequestDTO.getAccountId())
-                .orElseThrow(() -> new IllegalStateException("Account not found"));
+                .orElseThrow(() -> new CustomException(ErrorCode.ACCOUNT_NOT_FOUND));
 
         account.deposit(depositRequestDTO.getAmount());
 
-        Transaction transaction = transactionRepository.save(
-                new Transaction(
-                        TransactionType.DEPOSIT,
-                        depositRequestDTO.getAmount(),
-                        null,
-                        depositRequestDTO.getAccountId()));
+        Transaction transaction = new Transaction(
+                TransactionType.DEPOSIT,
+                depositRequestDTO.getAmount(),
+                null,
+                depositRequestDTO.getAccountId());
 
-        ledgerRepository.save(
-                new AccountLedger(
-                        depositRequestDTO.getAccountId(),
-                        transaction.getTransactionId(),
-                        EntryType.CREDIT,
-                        depositRequestDTO.getAmount(),
-                        account.getBalance())
-        );
+        try {
+            transactionRepository.save(transaction);
+
+            ledgerRepository.save(
+                    new AccountLedger(
+                            depositRequestDTO.getAccountId(),
+                            transaction.getTransactionId(),
+                            EntryType.CREDIT,
+                            depositRequestDTO.getAmount(),
+                            account.getBalance())
+            );
+
+            transaction.success();
+        } catch (Exception e) {
+            transaction.fail();
+            throw e;
+        }
+
     }
 
     @Transactional
     public void withdraw(WithdrawRequestDTO withdrawRequestDTO) {
         Account account = accountRepository.findByIdForUpdate(withdrawRequestDTO.getAccountId())
-                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+                .orElseThrow(() -> new CustomException(ErrorCode.ACCOUNT_NOT_FOUND));
 
         account.withdraw(withdrawRequestDTO.getAmount());
 
-        Transaction transaction = transactionRepository.save(
-                new Transaction(TransactionType.WITHDRAW, withdrawRequestDTO.getAmount(), account.getAccountId(), null)
-        );
+        Transaction transaction = new Transaction(TransactionType.WITHDRAW, withdrawRequestDTO.getAmount(), account.getAccountId(), null);
 
-        ledgerRepository.save(
-                new AccountLedger(account.getAccountId(), transaction.getTransactionId(), EntryType.DEBIT, withdrawRequestDTO.getAmount(), account.getBalance())
-        );
+        try {
+            transactionRepository.save(transaction);
+
+            ledgerRepository.save(
+                    new AccountLedger(account.getAccountId(), transaction.getTransactionId(), EntryType.DEBIT, withdrawRequestDTO.getAmount(), account.getBalance())
+            );
+            transaction.success();
+        } catch (Exception e) {
+            transaction.fail();
+            throw e;
+        }
     }
 
     @Transactional
@@ -73,7 +90,7 @@ public class TransactionService {
         BigDecimal amount = transferRequestDTO.getAmount();
 
         if (fromAccountId.equals(toAccountId)) {
-            throw new IllegalStateException("같은 계좌 이체 불가");
+            throw new CustomException(ErrorCode.INVALID_TRANSFER);
         }
 
         // 1. 정렬 (데드락 방지 핵심)
@@ -81,10 +98,10 @@ public class TransactionService {
         Long secondAccountId = Math.max(fromAccountId, toAccountId);
 
         Account firstAccount = accountRepository.findByIdForUpdate(firstAccountId)
-                .orElseThrow(() -> new IllegalStateException("Account not found"));
+                .orElseThrow(() -> new CustomException(ErrorCode.ACCOUNT_NOT_FOUND));
 
         Account secondAccount = accountRepository.findByIdForUpdate(secondAccountId)
-                .orElseThrow(() -> new IllegalStateException("Account not found"));
+                .orElseThrow(() -> new CustomException(ErrorCode.ACCOUNT_NOT_FOUND));
 
         // 2. 실제 계좌 매핑
         Account fromAccount = firstAccount.getAccountId().equals(fromAccountId) ? firstAccount : secondAccount;
@@ -97,18 +114,25 @@ public class TransactionService {
         toAccount.deposit(amount);
 
         // 5. 거래 생성
-        Transaction transaction = transactionRepository.save(
-                new Transaction(TransactionType.TRANSFER, amount, fromAccountId, secondAccountId)
-        );
+        Transaction transaction = new Transaction(TransactionType.TRANSFER, amount, fromAccountId, secondAccountId);
 
-        // 6. 원장(Ledger) 기록 (2건)
-        ledgerRepository.save(
-                new AccountLedger(fromAccountId, transaction.getTransactionId(), EntryType.DEBIT, amount, fromAccount.getBalance())
-        );
+        try {
+            transactionRepository.save(transaction);
 
-        ledgerRepository.save(
-                new AccountLedger(toAccountId, transaction.getTransactionId(), EntryType.CREDIT, amount, toAccount.getBalance())
-        );
+            // 6. 원장(Ledger) 기록 (2건)
+            ledgerRepository.save(
+                    new AccountLedger(fromAccountId, transaction.getTransactionId(), EntryType.DEBIT, amount, fromAccount.getBalance())
+            );
+
+            ledgerRepository.save(
+                    new AccountLedger(toAccountId, transaction.getTransactionId(), EntryType.CREDIT, amount, toAccount.getBalance())
+            );
+
+            transaction.success();
+        } catch (Exception e) {
+            transaction.fail();
+            throw e;
+        }
 
     }
 }

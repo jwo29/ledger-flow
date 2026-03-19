@@ -1,5 +1,6 @@
 package com.january.ledgerflow.transaction.domain;
 
+import com.january.ledgerflow.transaction.vo.TransactionStatus;
 import com.january.ledgerflow.transaction.vo.TransactionType;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -41,7 +42,15 @@ public class Transaction {
         this.amount = amount;
         this.fromAccountId = fromAccountId;
         this.toAccountId = toAccountId;
-        this.status = "COMPLETED";
+        this.status = TransactionStatus.SUCCESS.name();
         this.createdAt = LocalDateTime.now();
+    }
+
+    public void success() {
+        this.status = TransactionStatus.SUCCESS.name();
+    }
+
+    public void fail() {
+        this.status = TransactionStatus.FAILED.name();
     }
 }

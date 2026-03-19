@@ -3,6 +3,8 @@ package com.january.ledgerflow.account.service;
 import com.january.ledgerflow.account.domain.Account;
 import com.january.ledgerflow.account.dto.AccountCreateRequestDTO;
 import com.january.ledgerflow.account.repository.AccountRepository;
+import com.january.ledgerflow.common.exception.CustomException;
+import com.january.ledgerflow.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,7 +20,7 @@ public class AccountService {
     public Long createAccount(@RequestBody AccountCreateRequestDTO accountCreateRequestDTO) {
         accountRepository.findByAccountNumber(accountCreateRequestDTO.getAccountNumber())
                 .ifPresent(account -> {
-                    throw new IllegalStateException("Account already exists");
+                    throw new CustomException(ErrorCode.ACCOUNT_ALREADY_EXISTS);
                 });
 
         Account account = new Account(

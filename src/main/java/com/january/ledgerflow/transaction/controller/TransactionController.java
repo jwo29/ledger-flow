@@ -1,5 +1,6 @@
 package com.january.ledgerflow.transaction.controller;
 
+import com.january.ledgerflow.common.response.ApiResponse;
 import com.january.ledgerflow.transaction.dto.DepositRequestDTO;
 import com.january.ledgerflow.transaction.dto.TransferRequestDTO;
 import com.january.ledgerflow.transaction.dto.WithdrawRequestDTO;
@@ -12,20 +13,22 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class TransactionController {
 
-    private TransactionService transactionService;
+    private final TransactionService transactionService;
 
     @PostMapping("/{id}/deposit")
-    public void deposit(@RequestBody DepositRequestDTO depositRequestDTO, @PathVariable Long id) {
+    public ApiResponse<Void> deposit(@RequestBody DepositRequestDTO depositRequestDTO, @PathVariable Long id) {
         transactionService.deposit(depositRequestDTO);
+        return ApiResponse.success(null);
     }
 
     @PostMapping("/{id}/withdraw")
-    public void withdraw(@RequestBody WithdrawRequestDTO withdrawRequestDTO, @PathVariable Long id) {
+    public ApiResponse<Void> withdraw(@RequestBody WithdrawRequestDTO withdrawRequestDTO, @PathVariable Long id) {
         transactionService.withdraw(withdrawRequestDTO);
+        return ApiResponse.success(null);
     }
 
     @PostMapping("/transfer")
-    public void transfer(@RequestBody TransferRequestDTO transferRequestDTO) {
+    public ApiResponse<Void> transfer(@RequestBody TransferRequestDTO transferRequestDTO) {
         /**
          * 계좌 이체(TRANSFER)
          * - A → B
@@ -34,6 +37,7 @@ public class TransactionController {
          * - 데드락 방지(계좌 A, B가 서로에게 이체하려는 경우) by 계좌 ID 정렬(항상 작은 ID 먼저 락)
          */
         transactionService.transfer(transferRequestDTO);
+        return ApiResponse.success(null);
     }
 
 }

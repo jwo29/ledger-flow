@@ -25,6 +25,6 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     - 성능 낮음(추후 version 컬럼을 사용하여 낙관적 락(optimistic lock) 방식으로 전환 가능)
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select a from Account a where a.accountId = :id")
-    Optional<Account> findByIdForUpdate(@Param("id") Long userId);
+    @Query("select a from Account a where a.accountId = :accountId")
+    Optional<Account> findByIdForUpdate(@Param("accountId") Long accountId);
 }

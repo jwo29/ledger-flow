@@ -1,5 +1,7 @@
 package com.january.ledgerflow.account.domain;
 
+import com.january.ledgerflow.common.exception.CustomException;
+import com.january.ledgerflow.common.exception.ErrorCode;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -11,7 +13,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "accounts")
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED) // todo 질문
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Account {
 
     @Id
@@ -46,7 +48,7 @@ public class Account {
 
     public void withdraw(BigDecimal amount) {
         if (this.balance.compareTo(amount) < 0) {
-            throw new IllegalStateException("잔액 부족");
+            throw new CustomException(ErrorCode.INSUFFICIENT_BALANCE);
         }
         this.balance = this.balance.subtract(amount);
     }
