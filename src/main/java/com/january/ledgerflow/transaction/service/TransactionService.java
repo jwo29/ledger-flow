@@ -3,6 +3,8 @@ package com.january.ledgerflow.transaction.service;
 import com.january.ledgerflow.account.domain.Account;
 import com.january.ledgerflow.common.exception.CustomException;
 import com.january.ledgerflow.common.exception.ErrorCode;
+import com.january.ledgerflow.messaging.dto.TransactionEventDTO;
+import com.january.ledgerflow.messaging.producer.TransactionEventPublisher;
 import com.january.ledgerflow.transaction.dto.DepositRequestDTO;
 import com.january.ledgerflow.transaction.dto.TransferRequestDTO;
 import com.january.ledgerflow.transaction.dto.WithdrawRequestDTO;
@@ -19,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +30,8 @@ public class TransactionService {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
     private final LedgerRepository ledgerRepository;
+
+    private final TransactionEventPublisher transactionEventPublisher;
 
     @Transactional
     public void deposit(DepositRequestDTO depositRequestDTO) {
@@ -54,6 +59,17 @@ public class TransactionService {
             );
 
             transaction.success();
+
+            /************ 이벤트 발행 ************/
+            TransactionEventDTO eventDTO = new TransactionEventDTO(
+                    transaction.getTransactionId(),
+                    transaction.getAmount(),
+                    "CREATED",
+                    LocalDateTime.now()
+            );
+
+            transactionEventPublisher.publish(eventDTO);
+
         } catch (Exception e) {
             transaction.fail();
             throw e;
@@ -77,6 +93,16 @@ public class TransactionService {
                     new AccountLedger(account.getAccountId(), transaction.getTransactionId(), EntryType.DEBIT, withdrawRequestDTO.getAmount(), account.getBalance())
             );
             transaction.success();
+
+            /************ 이벤트 발행 ************/
+            TransactionEventDTO eventDTO = new TransactionEventDTO(
+                    transaction.getTransactionId(),
+                    transaction.getAmount(),
+                    "CREATED",
+                    LocalDateTime.now()
+            );
+
+            transactionEventPublisher.publish(eventDTO);
         } catch (Exception e) {
             transaction.fail();
             throw e;
@@ -129,10 +155,21 @@ public class TransactionService {
             );
 
             transaction.success();
+
+            /************ 이벤트 발행 ************/ // 비즈니스 이벤트는 Service 책임이므로, Service에서 publish 한다.
+            TransactionEventDTO eventDTO = new TransactionEventDTO(
+                    transaction.getTransactionId(),
+                    transaction.getAmount(),
+                    "CREATED",
+                    LocalDateTime.now()
+            );
+
+            transactionEventPublisher.publish(eventDTO);
         } catch (Exception e) {
             transaction.fail();
             throw e;
         }
 
     }
+
 }
