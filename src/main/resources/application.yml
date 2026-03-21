@@ -12,3 +12,12 @@ spring:
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
+  rabbitmq:
+    listener:
+      simple:
+        acknowledge-mode: manual
+    host: localhost
+    port: 5672
+    stream:
+      username: guest
+      password: guest
