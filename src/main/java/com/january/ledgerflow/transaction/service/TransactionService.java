@@ -5,6 +5,7 @@ import com.january.ledgerflow.common.exception.CustomException;
 import com.january.ledgerflow.common.exception.ErrorCode;
 import com.january.ledgerflow.messaging.dto.TransactionEventDTO;
 import com.january.ledgerflow.messaging.producer.TransactionEventPublisher;
+import com.january.ledgerflow.outbox.domain.OutboxEvent;
 import com.january.ledgerflow.transaction.dto.DepositRequestDTO;
 import com.january.ledgerflow.transaction.dto.TransferRequestDTO;
 import com.january.ledgerflow.transaction.dto.WithdrawRequestDTO;
@@ -12,13 +13,14 @@ import com.january.ledgerflow.account.repository.AccountRepository;
 import com.january.ledgerflow.transaction.domain.AccountLedger;
 import com.january.ledgerflow.transaction.domain.Transaction;
 import com.january.ledgerflow.transaction.repository.LedgerRepository;
+import com.january.ledgerflow.outbox.repository.OutboxEventRepository;
 import com.january.ledgerflow.transaction.repository.TransactionRepository;
 import com.january.ledgerflow.transaction.vo.EntryType;
 import com.january.ledgerflow.transaction.vo.TransactionType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.RequestBody;
+import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -27,9 +29,12 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class TransactionService {
 
+    private final ObjectMapper objectMapper;
+
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
     private final LedgerRepository ledgerRepository;
+    private final OutboxEventRepository outboxEventRepository;
 
     private final TransactionEventPublisher transactionEventPublisher;
 
@@ -68,7 +73,13 @@ public class TransactionService {
                     LocalDateTime.now()
             );
 
-            transactionEventPublisher.publish(eventDTO);
+            OutboxEvent event = new OutboxEvent(
+                    TransactionType.DEPOSIT.name(),
+                    transaction.getTransactionId(),
+                    TransactionType.DEPOSIT.name(),
+                    toJson(eventDTO));
+
+            outboxEventRepository.save(event);
 
         } catch (Exception e) {
             transaction.fail();
@@ -102,7 +113,13 @@ public class TransactionService {
                     LocalDateTime.now()
             );
 
-            transactionEventPublisher.publish(eventDTO);
+            outboxEventRepository.save(new OutboxEvent(
+                    TransactionType.WITHDRAW.name(),
+                    transaction.getTransactionId(),
+                    TransactionType.WITHDRAW.name(),
+                    toJson(eventDTO)
+            ));
+
         } catch (Exception e) {
             transaction.fail();
             throw e;
@@ -156,7 +173,7 @@ public class TransactionService {
 
             transaction.success();
 
-            /************ 이벤트 발행 ************/ // 비즈니스 이벤트는 Service 책임이므로, Service에서 publish 한다.
+            // 이벤트 → Outbox 저장
             TransactionEventDTO eventDTO = new TransactionEventDTO(
                     transaction.getTransactionId(),
                     transaction.getAmount(),
@@ -164,12 +181,22 @@ public class TransactionService {
                     LocalDateTime.now()
             );
 
-            transactionEventPublisher.publish(eventDTO);
+            outboxEventRepository.save(new OutboxEvent(
+                    "TRANSACTION",
+                    transaction.getTransactionId(),
+                    "TRANSFER",
+                    toJson(eventDTO)
+            ));
+
         } catch (Exception e) {
             transaction.fail();
             throw e;
         }
 
+    }
+
+    private String toJson(TransactionEventDTO eventDTO) {
+        return objectMapper.writeValueAsString(eventDTO);
     }
 
 }
