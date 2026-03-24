@@ -47,5 +47,6 @@ public class TransactionEventListener {
 
     private void process(TransactionEventDTO transactionEventDTO) {
         // 메일 발송, 외부 API 호출 등
+        // todo 정산
     }
 }

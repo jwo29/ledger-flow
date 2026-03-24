@@ -157,7 +157,7 @@ public class TransactionService {
         toAccount.deposit(amount);
 
         // 5. 거래 생성
-        Transaction transaction = new Transaction(TransactionType.TRANSFER, amount, fromAccountId, secondAccountId);
+        Transaction transaction = new Transaction(TransactionType.TRANSFER, amount, fromAccountId, toAccountId);
 
         try {
             transactionRepository.save(transaction);
